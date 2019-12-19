@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<RevitAddIns>
+  <AddIn Type="DBApplication">
+    <Name>FbxExporter</Name>
+    <FullClassName>Autodesk.ADN.FbxExporter.MainApp</FullClassName>
+    <Text>FbxExporter</Text>
+    <Description>Export Revit 3D views to FBX</Description>
+    <VisibilityMode>AlwaysVisible</VisibilityMode>
+    <Assembly>.\FbxExporter.dll</Assembly>
+    <AddInId>3358EDFE-93CF-4A1E-A61B-06A5D5E7AE10</AddInId>
+    <VendorId>ADSK</VendorId>
+    <VendorDescription>Autodesk, Inc, www.autodesk.com</VendorDescription>
+  </AddIn>
+</RevitAddIns>

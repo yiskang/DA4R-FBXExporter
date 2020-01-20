@@ -23,20 +23,14 @@
 // by Eason Kang - Autodesk Forge & Autodesk Developer Network (ADN)
 //
 
-using System;
-using System.Text.RegularExpressions;
+using System.Collections.Generic;
 
 namespace Autodesk.ADN.FbxExporter
 {
-    static class StringExtension
+    class InputParams
     {
-        public static string ReplaceInvalidFileNameChars(this string s, string replacement = "")
-        {
-            return Regex.Replace(s,
-              "[" + Regex.Escape(new String(System.IO.Path.GetInvalidPathChars())) + "]",
-              replacement, //can even use a replacement string of any length
-              RegexOptions.IgnoreCase);
-            //not using System.IO.Path.InvalidPathChars (deprecated insecure API)
-        }
+        public bool ExportAll { get; set; }
+
+        public List<string> ViewIds { get; set; }
     }
 }

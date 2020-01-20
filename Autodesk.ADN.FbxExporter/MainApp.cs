@@ -30,6 +30,8 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using DesignAutomationFramework;
 using System.Linq;
+using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace Autodesk.ADN.FbxExporter
 {
@@ -69,21 +71,40 @@ namespace Autodesk.ADN.FbxExporter
 
             Application app = data.RevitApp;
             if (app == null)
+            {
+                LogTrace("Error occured");
+                LogTrace("Invalid Revit App");
                 return false;
+            }
 
             string modelPath = data.FilePath;
             if (string.IsNullOrWhiteSpace(modelPath))
+            {
+                LogTrace("Error occured");
+                LogTrace("Invalid File Path");
                 return false;
+            }
 
             var doc = data.RevitDoc;
             if (doc == null)
+            {
+                LogTrace("Error occured");
+                LogTrace("Invalid Revit DB Document");
                 return false;
+            }
+
+            var inputParams= JsonConvert.DeserializeObject<InputParams>(File.ReadAllText("params.json"));
+            if (inputParams == null)
+            {
+                LogTrace("Invalid Input Params or Empty JSON Input");
+                return false;
+            }
 
             using (var collector = new FilteredElementCollector(doc))
             {
-                LogTrace("Collecting 3D views...");
+                LogTrace("Creating export folder...");
 
-                var exportPath = Path.Combine(Directory.GetCurrentDirectory(), "exported");
+                var exportPath = Path.Combine(Directory.GetCurrentDirectory(), "exportedFBXs");
                 if (!Directory.Exists(exportPath))
                 {
                     try
@@ -99,15 +120,49 @@ namespace Autodesk.ADN.FbxExporter
 
                 LogTrace(string.Format("Export Path: {0}", exportPath));
 
-                var veiwIds = collector.WhereElementIsNotElementType()
+                LogTrace("Collecting 3D views...");
+                IEnumerable<ElementId> viewIds = null;
+
+                if (inputParams.ExportAll == true)
+                {
+                    viewIds = collector.WhereElementIsNotElementType()
                                         .OfClass(typeof(View3D))
                                         .WhereElementIsNotElementType()
                                         .Cast<View3D>()
                                         .Where(v => !v.IsTemplate)
                                         .Select(v => v.Id);
-
-                if (veiwIds == null || veiwIds.Count() <= 0)
+                }
+                else
                 {
+                    try
+                    {
+                        if (inputParams.ViewIds == null || inputParams.ViewIds.Count() <= 0)
+                        {
+                            throw new InvalidDataException("Invalid input viewIds while the exportAll value is false!");
+                        }
+
+                        var viewElemIds = new List<ElementId>();
+                        foreach (var viewGuid in inputParams.ViewIds)
+                        {
+                            var view = doc.GetElement(viewGuid);
+                            if (view == null || (!(view is View3D)))
+                                throw new InvalidDataException(string.Format("3D view not found with guid `{0}`", viewGuid));
+
+                            viewElemIds.Add(view.Id);
+                        }
+
+                        viewIds = viewElemIds;
+                    }
+                    catch(Exception ex)
+                    {
+                        this.PrintError(ex);
+                        return false;
+                    }
+                }
+
+                if (viewIds == null || viewIds.Count() <= 0)
+                {
+                    LogTrace("Error occured");
                     LogTrace("No 3D views to be exported...");
                     return false;
                 }
@@ -116,7 +171,7 @@ namespace Autodesk.ADN.FbxExporter
 
                 try
                 {
-                    foreach (var viewId in veiwIds)
+                    foreach (var viewId in viewIds)
                     {
                         var exportOpts = new FBXExportOptions();
                         exportOpts.StopOnError = true;
@@ -157,6 +212,8 @@ namespace Autodesk.ADN.FbxExporter
                 }
             }
 
+            LogTrace("Exporting completed...");
+
             return true;
         }
 
@@ -164,12 +221,20 @@ namespace Autodesk.ADN.FbxExporter
         {
             LogTrace("Error occured");
             LogTrace(ex.Message);
-            LogTrace(ex.InnerException.Message);
+
+            if (ex.InnerException !=null)
+                LogTrace(ex.InnerException.Message);
         }
 
         /// <summary>
         /// This will appear on the Design Automation output
         /// </summary>
-        private static void LogTrace(string format, params object[] args) { System.Console.WriteLine(format, args); }
+        private static void LogTrace(string format, params object[] args)
+        {
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine(string.Format(format, args));
+#endif
+            System.Console.WriteLine(format, args);
+        }
     }
 }
